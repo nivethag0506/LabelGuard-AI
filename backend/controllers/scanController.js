@@ -500,7 +500,7 @@ export const createScan = async (req, res) => {
       const avgConfidence = multiOcr.averageConfidence;
 
       // 3.3 Verify Product Identity Across All Submitted Views
-      const identityResult = verifyProductIdentity(ocrByView);
+      const identityResult = verifyProductIdentity(ocrByView, avgConfidence);
 
       // Helper to build database views records (Requirement 21) & images object
       const submittedViews = [];
@@ -593,18 +593,45 @@ export const createScan = async (req, res) => {
       // =======================================================================
       // GATE 1: Invalid / Non-Product Media Detection (Requirement 6 & Test 7)
       // =======================================================================
-      if (identityResult.isPackagedProduct === false) {
-        console.warn(`[ScanController] INVALID PRODUCT: Unable to identify a packaged product from submitted media.`);
+      if (identityResult.isPackagedProduct === false || identityResult.productDetectionLevel === 'INVALID_PRODUCT') {
+        console.warn(`[ScanController] INVALID PRODUCT: Unable to identify a packaged commodity in submitted media.`);
         
         const invalidProductScanData = {
           inspectionId,
-          productName: 'Unable to Identify a Packaged Product',
-          brand: 'Unidentified Media',
-          productCategory: 'Non-Product / Unclear Media',
-          complianceScore: 0,
-          status: 'NEEDS_REVIEW',
-          productIdentity: identityResult,
-          identityConfidence: identityResult.identityConfidence || 15,
+          productName: null,
+          brand: null,
+          productCategory: null,
+          categoryConfidence: 0,
+          manufacturer: null,
+          manufacturerAddress: null,
+          packer: null,
+          importer: null,
+          netQuantity: null,
+          mrp: null,
+          batchNumber: null,
+          manufacturingDate: null,
+          bestBefore: null,
+          expiryDate: null,
+          countryOfOrigin: null,
+          consumerCare: null,
+          productDetected: false,
+          scoreAvailable: false,
+          complianceScore: null,
+          status: 'INVALID_PRODUCT',
+          productDetectionConfidence: identityResult.productDetectionConfidence || 0,
+          productDetectionLevel: 'INVALID_PRODUCT',
+          productDetectionSignals: identityResult.productDetectionSignals || [],
+          identityConfidence: identityResult.identityConfidence || 0,
+          extractedFields: {},
+          ruleEvaluations: [],
+          ruleResults: [],
+          issues: [],
+          passedRules: 0,
+          warningRules: 0,
+          reviewRules: 0,
+          failedRules: 0,
+          notApplicableRules: 0,
+          totalRules: 10,
           images: imagesData,
           views: submittedViews,
           imageQuality: imageQualityMap,
@@ -630,31 +657,15 @@ export const createScan = async (req, res) => {
           decisionGate: {
             passed: false,
             code: 'INVALID_PRODUCT',
-            reason: 'Unable to identify a packaged product from the submitted media.'
+            reason: 'Unable to identify a packaged commodity in the submitted media. Please upload a clear image of the actual product package.'
           },
-          issues: [{
-            ruleId: 'PACKAGE-VALIDITY-01',
-            field: 'mediaValidity',
-            title: 'Unable to Identify a Packaged Product',
-            severity: 'HIGH',
-            status: 'NEEDS_REVIEW',
-            confidence: 0.95,
-            detectedValue: 'Unidentified Media',
-            sourceView: 'ALL VIEWS',
-            sourceText: 'No statutory package declarations, brand trademarks, or commodity packaging hallmarks found.',
-            evidence: 'Unable to identify a packaged product from the submitted media.',
-            explanation: 'Unable to identify a packaged product from the submitted media.',
-            recommendation: 'Submit clear photographs of an actual physical packaged commodity with printed labels.',
-            whyItMatters: 'LegalScan performs compliance checks specifically on pre-packaged commodities under the Legal Metrology (Packaged Commodities) Rules.',
-            recommendedAction: 'Submit clear photographs of an actual physical packaged commodity with printed labels.'
-          }],
           recommendations: [
             'Ensure the camera is focused on an actual packaged product.',
             'Capture surfaces that display statutory declarations (e.g. MRP, Net Wt, Manufacturer, Batch).'
           ],
           smartRetakes: [{
             view: 'FRONT',
-            reason: 'Submit photographs of an actual packaged commodity with printed statutory declarations.'
+            reason: 'Submit photographs of an actual physical packaged commodity with printed statutory declarations.'
           }],
           inspectionCompleteness: {
             ...inspectionCompleteness,
@@ -677,7 +688,7 @@ export const createScan = async (req, res) => {
 
         return res.status(201).json({
           success: true,
-          message: 'Unable to identify a packaged product from the submitted media.',
+          message: 'Unable to identify a packaged commodity in the submitted media. Please upload a clear image of the actual product package.',
           data: savedRecord.toObject ? savedRecord.toObject() : savedRecord
         });
       }
@@ -693,10 +704,36 @@ export const createScan = async (req, res) => {
           productName: 'Product Mismatch Detected',
           brand: 'Multiple Brands Detected',
           productCategory: 'Mixed Package Views',
-          complianceScore: 0,
+          categoryConfidence: 0,
+          manufacturer: null,
+          manufacturerAddress: null,
+          packer: null,
+          importer: null,
+          netQuantity: null,
+          mrp: null,
+          batchNumber: null,
+          manufacturingDate: null,
+          bestBefore: null,
+          expiryDate: null,
+          countryOfOrigin: null,
+          consumerCare: null,
+          productDetected: true,
+          scoreAvailable: false,
+          complianceScore: null,
           status: 'PRODUCT_MISMATCH',
-          productIdentity: identityResult,
+          productDetectionConfidence: identityResult.productDetectionConfidence || 75,
+          productDetectionLevel: identityResult.productDetectionLevel || 'HIGH_CONFIDENCE_PRODUCT',
+          productDetectionSignals: identityResult.productDetectionSignals || [],
           identityConfidence: identityResult.identityConfidence,
+          extractedFields: {},
+          ruleEvaluations: [],
+          ruleResults: [],
+          passedRules: 0,
+          warningRules: 0,
+          reviewRules: 0,
+          failedRules: 0,
+          notApplicableRules: 0,
+          totalRules: 10,
           images: imagesData,
           views: submittedViews,
           imageQuality: imageQualityMap,
@@ -775,20 +812,46 @@ export const createScan = async (req, res) => {
       }
 
       // =======================================================================
-      // GATE 3: Low Product Identity Confidence Gate (Requirement 8)
+      // GATE 3: Low Product Identity Confidence Gate (Requirement 6 & 8)
       // =======================================================================
-      if (identityResult.identityConfidence < 40 && Object.keys(viewsMap).length > 1) {
-        console.warn(`[ScanController] LOW IDENTITY CONFIDENCE: Unable to establish all views belong to the same product.`);
+      if (identityResult.productDetectionLevel === 'LOW_CONFIDENCE_PRODUCT' || (identityResult.identityConfidence < 40 && Object.keys(viewsMap).length > 1)) {
+        console.warn(`[ScanController] LOW IDENTITY CONFIDENCE: Packaged product detected, but product identity could not be established confidently.`);
         
         const lowConfidenceScanData = {
           inspectionId,
-          productName: 'Low Identity Confidence',
-          brand: 'Unconfirmed Product',
+          productName: null,
+          brand: null,
           productCategory: 'Unverified Commodity',
-          complianceScore: 0,
+          categoryConfidence: 0.3,
+          manufacturer: null,
+          manufacturerAddress: null,
+          packer: null,
+          importer: null,
+          netQuantity: null,
+          mrp: null,
+          batchNumber: null,
+          manufacturingDate: null,
+          bestBefore: null,
+          expiryDate: null,
+          countryOfOrigin: null,
+          consumerCare: null,
+          productDetected: true,
+          scoreAvailable: false,
+          complianceScore: null,
           status: 'NEEDS_REVIEW',
-          productIdentity: identityResult,
+          productDetectionConfidence: identityResult.productDetectionConfidence || 35,
+          productDetectionLevel: 'LOW_CONFIDENCE_PRODUCT',
+          productDetectionSignals: identityResult.productDetectionSignals || [],
           identityConfidence: identityResult.identityConfidence,
+          extractedFields: {},
+          ruleEvaluations: [],
+          ruleResults: [],
+          passedRules: 0,
+          warningRules: 0,
+          reviewRules: 0,
+          failedRules: 0,
+          notApplicableRules: 0,
+          totalRules: 10,
           images: imagesData,
           views: submittedViews,
           imageQuality: imageQualityMap,
@@ -814,7 +877,7 @@ export const createScan = async (req, res) => {
           decisionGate: {
             passed: false,
             code: 'LOW_CONFIDENCE',
-            reason: 'Unable to confidently establish that all submitted views belong to the same product.'
+            reason: 'Packaged product detected, but product identity could not be established confidently from the submitted evidence.'
           },
           issues: [{
             ruleId: 'IDENTITY-01',
@@ -823,27 +886,27 @@ export const createScan = async (req, res) => {
             severity: 'HIGH',
             status: 'NEEDS_REVIEW',
             confidence: 0.90,
-            detectedValue: `Confidence: ${identityResult.identityConfidence}%`,
+            detectedValue: `Detection Score: ${identityResult.productDetectionConfidence}%`,
             sourceView: 'ALL VIEWS',
             sourceText: identityResult.explanation,
-            evidence: 'Unable to confidently establish that all submitted views belong to the same product.',
-            explanation: identityResult.explanation || 'Unable to confidently establish that all submitted views belong to the same product.',
-            recommendation: 'Re-capture package surfaces in sequence with clear branding visible.',
-            whyItMatters: 'Field inspection requires all submitted views to belong to a single physical product unit.',
-            recommendedAction: 'Re-capture package surfaces in sequence with clear branding visible.'
+            evidence: 'Packaged product detected, but product identity could not be established confidently from the submitted evidence.',
+            explanation: 'Packaged product detected, but product identity could not be established confidently from the submitted evidence.',
+            recommendation: 'Re-capture package surfaces with clear, well-lit photographs showing brand and mandatory statutory declarations.',
+            whyItMatters: 'Legal Metrology compliance requires confident establishment of commodity identity before full rule evaluation.',
+            recommendedAction: 'Re-capture package surfaces with clear, well-lit photographs.'
           }],
           recommendations: [
-            'Ensure all photos are taken of the same packaging unit.',
-            'Keep brand name and product title visible.'
+            'Ensure all photos are taken of the same packaging unit in good lighting.',
+            'Keep brand name, commodity title, and statutory declaration text sharp and legible.'
           ],
           smartRetakes: [{
             view: 'ALL',
-            reason: 'Retake package surfaces in sequence to verify product continuity.'
+            reason: 'Retake package surfaces with higher sharpness to verify product declarations.'
           }],
           inspectionCompleteness: {
             ...inspectionCompleteness,
             imageQuality: 'Needs Review',
-            productIdentity: 'Uncertain',
+            productIdentity: 'Low Confidence',
             ocrCoverage: 'Partial',
             ruleCoverage: 'Blocked',
             overallCompleteness: 'LOW_CONFIDENCE'
@@ -861,7 +924,7 @@ export const createScan = async (req, res) => {
 
         return res.status(201).json({
           success: true,
-          message: 'Unable to confidently establish that all submitted views belong to the same product.',
+          message: 'Packaged product detected, but product identity could not be established confidently from the submitted evidence.',
           data: savedRecord.toObject ? savedRecord.toObject() : savedRecord
         });
       }
@@ -934,6 +997,11 @@ export const createScan = async (req, res) => {
           sampledFrames: videoFrameFiles.map(f => `/uploads/${f.filename}`),
           frameCount: videoFrameFiles.length
         },
+        productDetected: true,
+        scoreAvailable: true,
+        productDetectionConfidence: identityResult.productDetectionConfidence || 85,
+        productDetectionLevel: identityResult.productDetectionLevel || 'HIGH_CONFIDENCE_PRODUCT',
+        productDetectionSignals: identityResult.productDetectionSignals || [],
         productIdentity: identityResult,
         identityConfidence: identityResult.identityConfidence,
         ocr: {

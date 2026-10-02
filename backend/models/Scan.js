@@ -19,23 +19,23 @@ const issueSchema = new mongoose.Schema({
 
 const scanSchema = new mongoose.Schema({
   inspectionId: { type: String, sparse: true },
-  productName: { type: String, default: 'Packaged Commodity' },
-  brand: { type: String, default: '' },
-  productCategory: { type: String, default: 'General Packaged Commodity' },
-  categoryConfidence: { type: Number, default: 0.85 },
+  productName: { type: String, default: null },
+  brand: { type: String, default: null },
+  productCategory: { type: String, default: null },
+  categoryConfidence: { type: Number, default: 0 },
   
-  manufacturer: { type: String, default: '' },
-  manufacturerAddress: { type: String, default: '' },
-  packer: { type: String, default: '' },
-  importer: { type: String, default: '' },
-  netQuantity: { type: String, default: '' },
-  mrp: { type: String, default: '' },
-  batchNumber: { type: String, default: '' },
-  manufacturingDate: { type: String, default: '' },
-  bestBefore: { type: String, default: '' },
-  expiryDate: { type: String, default: '' },
-  countryOfOrigin: { type: String, default: '' },
-  consumerCare: { type: String, default: '' },
+  manufacturer: { type: String, default: null },
+  manufacturerAddress: { type: String, default: null },
+  packer: { type: String, default: null },
+  importer: { type: String, default: null },
+  netQuantity: { type: String, default: null },
+  mrp: { type: String, default: null },
+  batchNumber: { type: String, default: null },
+  manufacturingDate: { type: String, default: null },
+  bestBefore: { type: String, default: null },
+  expiryDate: { type: String, default: null },
+  countryOfOrigin: { type: String, default: null },
+  consumerCare: { type: String, default: null },
   
   // Multi-View Images & Evidence (Flexible Multi-View Workflow)
   images: {
@@ -75,14 +75,7 @@ const scanSchema = new mongoose.Schema({
   },
 
   // One Physical Product Identity Verification
-  productIdentity: {
-    confirmed: { type: Boolean, default: true },
-    level: { type: String, enum: ['HIGH CONFIDENCE', 'MEDIUM CONFIDENCE', 'LOW CONFIDENCE'], default: 'HIGH CONFIDENCE' },
-    confidence: { type: Number, default: 95 },
-    mismatchDetected: { type: Boolean, default: false },
-    suspiciousView: { type: String, default: '' },
-    signals: { type: mongoose.Schema.Types.Mixed, default: {} }
-  },
+  productIdentity: { type: mongoose.Schema.Types.Mixed, default: {} },
   identityConfidence: { type: Number, default: 95 },
 
   // Per-View OCR and Combined OCR Text
@@ -107,10 +100,29 @@ const scanSchema = new mongoose.Schema({
   extractedFields: { type: mongoose.Schema.Types.Mixed, default: {} },
   scoreBreakdown: { type: mongoose.Schema.Types.Mixed, default: {} },
   
-  complianceScore: { type: Number, required: true, min: 0, max: 100 },
+  // productDetected = false for invalid/unrelated images (landscapes, selfies, etc.)
+  productDetected: { type: Boolean, default: true },
+  
+  // scoreAvailable = false means compliance scoring was NOT performed (INVALID_PRODUCT, MISMATCH etc.)
+  // Do NOT show a numeric score in the UI when scoreAvailable === false.
+  scoreAvailable: { type: Boolean, default: true },
+  // Numeric compliance score — only meaningful when scoreAvailable === true
+  complianceScore: { type: Number, min: 0, max: 100, default: null },
+
+  // Product Detection Confidence: 0-100, SEPARATE from compliance score.
+  // Represents confidence that submitted images show an actual packaged commodity.
+  // HIGH_CONFIDENCE_PRODUCT (>=60) | LOW_CONFIDENCE_PRODUCT (30-59) | INVALID_PRODUCT (<30)
+  productDetectionConfidence: { type: Number, min: 0, max: 100, default: 0 },
+  productDetectionLevel: {
+    type: String,
+    enum: ['HIGH_CONFIDENCE_PRODUCT', 'LOW_CONFIDENCE_PRODUCT', 'INVALID_PRODUCT', 'NOT_ASSESSED'],
+    default: 'NOT_ASSESSED'
+  },
+  productDetectionSignals: [{ type: String }],
+
   status: {
     type: String,
-    enum: ['COMPLIANT', 'NEEDS_REVIEW', 'HIGH_RISK', 'PRODUCT_MISMATCH', 'INSUFFICIENT_EVIDENCE'],
+    enum: ['COMPLIANT', 'NEEDS_REVIEW', 'HIGH_RISK', 'PRODUCT_MISMATCH', 'INSUFFICIENT_EVIDENCE', 'INVALID_PRODUCT'],
     required: true
   },
   

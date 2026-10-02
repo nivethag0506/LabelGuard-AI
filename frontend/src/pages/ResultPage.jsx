@@ -329,6 +329,57 @@ export default function ResultPage() {
         </div>
       </div>
 
+      {/* INVALID PRODUCT ALERT BANNER */}
+      {scan.status === 'INVALID_PRODUCT' && (
+        <div className="card invalid-product-alert-banner" style={{
+          backgroundColor: '#fff1f2',
+          borderColor: '#fecdd3',
+          borderWidth: '2px',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.25rem',
+          borderRadius: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+            <div style={{
+              backgroundColor: '#fee2e2',
+              color: '#dc2626',
+              borderRadius: '50%',
+              padding: '0.65rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <AlertTriangle size={24} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+                <span style={{
+                  backgroundColor: '#dc2626',
+                  color: '#fff',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  letterSpacing: '0.05em'
+                }}>
+                  INVALID PRODUCT
+                </span>
+                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                  Product Detection Confidence: <strong>{scan.productDetectionConfidence || 0}%</strong> (Minimum Required: 30%)
+                </span>
+              </div>
+              <h3 style={{ margin: '0.25rem 0 0.4rem 0', color: '#991b1b', fontSize: '1.15rem' }}>
+                Unable to identify a packaged commodity in the submitted media.
+              </h3>
+              <p style={{ margin: 0, color: '#4b5563', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                Please upload a clear image of the actual product package. LegalScan performs compliance evaluations specifically on pre-packaged commodities with printed statutory labels, brand trademarks, and net quantity declarations.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Preliminary Assessment Header Banner (Requirement 24) */}
       <div className="card preliminary-assessment-banner">
         <div className="preliminary-header-top">
@@ -343,27 +394,29 @@ export default function ResultPage() {
 
         <div className="preliminary-stats-grid">
           <div className="prelim-stat-box">
-            <span className="prelim-lbl">Product Identity</span>
-            <span className={`prelim-val ${productIdentity.confirmed !== false ? 'success' : 'danger'}`}>
-              {productIdentity.level || 'CONFIRMED'}
+            <span className="prelim-lbl">Product Detection</span>
+            <span className={`prelim-val ${scan.status === 'INVALID_PRODUCT' ? 'danger' : (scan.productDetectionLevel === 'LOW_CONFIDENCE_PRODUCT' ? 'warning' : 'success')}`}>
+              {scan.status === 'INVALID_PRODUCT' ? 'INVALID' : (scan.productDetectionLevel === 'LOW_CONFIDENCE_PRODUCT' ? 'LOW CONFIDENCE' : 'CONFIRMED')}
             </span>
-            <span className="prelim-sub">{productIdentity.confidence || scan.identityConfidence || 95}% Match</span>
+            <span className="prelim-sub">
+              {scan.productDetectionConfidence !== undefined && scan.productDetectionConfidence !== null ? `${scan.productDetectionConfidence}% Confidence` : `${productIdentity.confidence || 95}% Match`}
+            </span>
           </div>
 
           <div className="prelim-stat-box">
             <span className="prelim-lbl">Views Analyzed</span>
             <span className="prelim-val font-mono">
-              {inspectionCompleteness.viewsCount || 4} / 4
+              {inspectionCompleteness.viewsCount || submittedViewsList.length} Views
             </span>
             <span className="prelim-sub">{inspectionCompleteness.overallCompleteness || 'COMPLETE'}</span>
           </div>
 
           <div className="prelim-stat-box">
-            <span className="prelim-lbl">Video Continuity</span>
-            <span className="prelim-val">
-              {scan.video?.analyzed ? 'ANALYZED' : 'STANDARD'}
+            <span className="prelim-lbl">Compliance Scoring</span>
+            <span className={`prelim-val ${scan.scoreAvailable === false ? 'danger' : 'success'}`}>
+              {scan.scoreAvailable === false ? 'N/A' : `${scan.complianceScore || 0}%`}
             </span>
-            <span className="prelim-sub">{scan.video?.frameCount || 0} Keyframes</span>
+            <span className="prelim-sub">{scan.scoreAvailable === false ? 'Scoring Blocked' : 'Evaluated'}</span>
           </div>
 
           <div className="prelim-stat-box">
@@ -470,11 +523,14 @@ export default function ResultPage() {
         <div className="result-score-col">
           <ComplianceScore
             score={scan.complianceScore}
+            scoreAvailable={scan.scoreAvailable}
             status={scan.status}
             passedRules={scan.passedRules}
             warningRules={scan.warningRules}
             failedRules={scan.failedRules}
             totalRules={scan.totalRules || 10}
+            productDetectionConfidence={scan.productDetectionConfidence}
+            productDetectionLevel={scan.productDetectionLevel}
           />
 
           {/* Completeness Card (Requirement 8) */}
@@ -506,8 +562,10 @@ export default function ResultPage() {
                 </strong>
               </div>
               <div className="completeness-item">
-                <span>Product Identity:</span>
-                <strong className="text-success">{productIdentity.level || 'Confirmed'}</strong>
+                <span>Product Detection:</span>
+                <strong className={scan.status === 'INVALID_PRODUCT' ? 'text-danger' : 'text-success'}>
+                  {scan.status === 'INVALID_PRODUCT' ? 'Invalid Product' : (scan.productDetectionLevel || 'Confirmed')}
+                </strong>
               </div>
               <div className="completeness-item">
                 <span>Rule Version:</span>
@@ -540,77 +598,81 @@ export default function ResultPage() {
       )}
 
       {/* Dedicated Manufacturing & Responsible Entity Details (Requirement 13 & 51) */}
-      <section className="result-section">
-        <div className="card manufacturing-details-card">
-          <div className="mfg-details-header">
-            <div className="mfg-title-group">
-              <ShieldCheck size={20} />
-              <h3 className="mfg-title">Manufacturing & Responsible Entity Details</h3>
+      {scan.status !== 'INVALID_PRODUCT' && scan.status !== 'PRODUCT_MISMATCH' && (
+        <section className="result-section">
+          <div className="card manufacturing-details-card">
+            <div className="mfg-details-header">
+              <div className="mfg-title-group">
+                <ShieldCheck size={20} />
+                <h3 className="mfg-title">Manufacturing & Responsible Entity Details</h3>
+              </div>
+              <span className="mfg-badge">Statutory Traceability</span>
             </div>
-            <span className="mfg-badge">Statutory Traceability</span>
+
+            <p className="mfg-subtitle">
+              Statutory entity declarations extracted under Rule 6(1). Tap any field to review its exact source view and OCR text snippet.
+            </p>
+
+            <div className="mfg-fields-grid">
+              {[
+                { label: 'Manufacturer Name', key: 'manufacturer', defaultVal: scan.manufacturer },
+                { label: 'Packer Details', key: 'packer', defaultVal: scan.packer || 'Domestically Packed' },
+                { label: 'Importer Details', key: 'importer', defaultVal: scan.importer || 'N/A (Domestic)' },
+                { label: 'Premises Postal Address', key: 'manufacturerAddress', defaultVal: scan.manufacturerAddress },
+                { label: 'Manufacturing / Packing Date', key: 'manufacturingDate', defaultVal: scan.manufacturingDate },
+                { label: 'Batch / Lot Number', key: 'batchNumber', defaultVal: scan.batchNumber },
+                { label: 'Consumer Redressal Helpline', key: 'consumerCare', defaultVal: scan.consumerCare },
+                { label: 'Country of Origin', key: 'countryOfOrigin', defaultVal: scan.countryOfOrigin || 'India' }
+              ].map((fItem) => {
+                const fieldObj = extractedFields[fItem.key] || {};
+                const val = fieldObj.value || fItem.defaultVal;
+                const hasVal = val && !val.toLowerCase().includes('not detected');
+                const srcView = fieldObj.sourceView || 'BACK IMAGE';
+
+                return (
+                  <div
+                    key={fItem.key}
+                    className="mfg-field-card"
+                    onClick={() => setSelectedFieldEvidence({
+                      field: fItem.label,
+                      value: val,
+                      sourceView: srcView,
+                      sourceText: fieldObj.sourceText || `Extracted value: "${val}"`,
+                      confidence: fieldObj.confidence || 0.90
+                    })}
+                  >
+                    <div className="mfg-field-top">
+                      <span className="mfg-field-lbl">{fItem.label}</span>
+                      <span className={`mfg-field-status ${hasVal ? 'detected' : 'review'}`}>
+                        {hasVal ? '✓ Detected' : '⚠ Needs Review'}
+                      </span>
+                    </div>
+
+                    <div className="mfg-field-val">
+                      {val || 'Declaration not confidently detected'}
+                    </div>
+
+                    <div className="mfg-field-source">
+                      Source: <strong>{srcView}</strong>
+                      <span className="view-snippet-link">View Snippet →</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-
-          <p className="mfg-subtitle">
-            Statutory entity declarations extracted under Rule 6(1). Tap any field to review its exact source view and OCR text snippet.
-          </p>
-
-          <div className="mfg-fields-grid">
-            {[
-              { label: 'Manufacturer Name', key: 'manufacturer', defaultVal: scan.manufacturer },
-              { label: 'Packer Details', key: 'packer', defaultVal: scan.packer || 'Domestically Packed' },
-              { label: 'Importer Details', key: 'importer', defaultVal: scan.importer || 'N/A (Domestic)' },
-              { label: 'Premises Postal Address', key: 'manufacturerAddress', defaultVal: scan.manufacturerAddress },
-              { label: 'Manufacturing / Packing Date', key: 'manufacturingDate', defaultVal: scan.manufacturingDate },
-              { label: 'Batch / Lot Number', key: 'batchNumber', defaultVal: scan.batchNumber },
-              { label: 'Consumer Redressal Helpline', key: 'consumerCare', defaultVal: scan.consumerCare },
-              { label: 'Country of Origin', key: 'countryOfOrigin', defaultVal: scan.countryOfOrigin || 'India' }
-            ].map((fItem) => {
-              const fieldObj = extractedFields[fItem.key] || {};
-              const val = fieldObj.value || fItem.defaultVal;
-              const hasVal = val && !val.toLowerCase().includes('not detected');
-              const srcView = fieldObj.sourceView || 'BACK IMAGE';
-
-              return (
-                <div
-                  key={fItem.key}
-                  className="mfg-field-card"
-                  onClick={() => setSelectedFieldEvidence({
-                    field: fItem.label,
-                    value: val,
-                    sourceView: srcView,
-                    sourceText: fieldObj.sourceText || `Extracted value: "${val}"`,
-                    confidence: fieldObj.confidence || 0.90
-                  })}
-                >
-                  <div className="mfg-field-top">
-                    <span className="mfg-field-lbl">{fItem.label}</span>
-                    <span className={`mfg-field-status ${hasVal ? 'detected' : 'review'}`}>
-                      {hasVal ? '✓ Detected' : '⚠ Needs Review'}
-                    </span>
-                  </div>
-
-                  <div className="mfg-field-val">
-                    {val || 'Declaration not confidently detected'}
-                  </div>
-
-                  <div className="mfg-field-source">
-                    Source: <strong>{srcView}</strong>
-                    <span className="view-snippet-link">View Snippet →</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Mandatory Statutory Checklist */}
-      <section className="result-section">
-        <ComplianceChecklist
-          ruleEvaluations={ruleEvaluations}
-          onSelectRule={handleSelectRuleEvidence}
-        />
-      </section>
+      {scan.status !== 'INVALID_PRODUCT' && scan.status !== 'PRODUCT_MISMATCH' && scan.scoreAvailable !== false && (
+        <section className="result-section">
+          <ComplianceChecklist
+            ruleEvaluations={ruleEvaluations}
+            onSelectRule={handleSelectRuleEvidence}
+          />
+        </section>
+      )}
 
       {/* Identified Issues & Risk Points */}
       <section className="result-section">
@@ -622,11 +684,21 @@ export default function ResultPage() {
             </h3>
           </div>
           <span className="section-badge-info">
-            {issues.length === 0 ? 'Zero Violations Detected' : 'Inspector Review Recommended'}
+            {scan.status === 'INVALID_PRODUCT' ? 'Media Not Evaluated' : (issues.length === 0 ? 'Zero Violations Detected' : 'Inspector Review Recommended')}
           </span>
         </div>
 
-        {issues.length > 0 ? (
+        {scan.status === 'INVALID_PRODUCT' ? (
+          <div className="card no-issues-box" style={{ backgroundColor: '#fff8f6', borderColor: '#fed7aa' }}>
+            <Info size={36} color="#ea580c" />
+            <div className="no-issues-content">
+              <h4>Compliance Evaluation Not Performed</h4>
+              <p>
+                No packaged commodity was detected in the submitted images. Please capture and submit valid front and back packaging photographs with visible statutory labels.
+              </p>
+            </div>
+          </div>
+        ) : issues.length > 0 ? (
           <div className="issues-stack">
             {issues.map((issue, idx) => (
               <IssueCard key={idx} issue={issue} />
@@ -834,35 +906,45 @@ export default function ResultPage() {
               {/* Tab 5: Score Calculation */}
               {debugTab === 'score' && (
                 <div className="debug-tab-pane">
-                  <div className="debug-stat-grid">
-                    <div className="debug-stat-item">
-                      <span>Total Applicable Weight:</span>
-                      <strong>{scoreBreakdown.totalPossibleWeight || 100} pts</strong>
+                  {scan.scoreAvailable !== false ? (
+                    <>
+                      <div className="debug-stat-grid">
+                        <div className="debug-stat-item">
+                          <span>Total Applicable Weight:</span>
+                          <strong>{scoreBreakdown.totalPossibleWeight || 100} pts</strong>
+                        </div>
+                        <div className="debug-stat-item">
+                          <span>Total Earned Weight:</span>
+                          <strong>{scoreBreakdown.earnedWeight || scan.complianceScore} pts</strong>
+                        </div>
+                        <div className="debug-stat-item">
+                          <span>Passed Weight (100%):</span>
+                          <strong>{scoreBreakdown.passedWeight || 0} pts</strong>
+                        </div>
+                        <div className="debug-stat-item">
+                          <span>Warning Weight (50%):</span>
+                          <strong>{scoreBreakdown.warningWeight || 0} pts</strong>
+                        </div>
+                        <div className="debug-stat-item">
+                          <span>Needs Review Weight (70%):</span>
+                          <strong>{scoreBreakdown.reviewWeight || 0} pts</strong>
+                        </div>
+                        <div className="debug-stat-item">
+                          <span>Failed Weight (0%):</span>
+                          <strong>{scoreBreakdown.failedWeight || 0} pts</strong>
+                        </div>
+                      </div>
+                      <p className="debug-formula-note">
+                        Score = (Earned Weight / Total Applicable Weight) × 100 = <strong>{scan.complianceScore}%</strong>. Excluded (NOT_APPLICABLE) rules do not reduce score.
+                      </p>
+                    </>
+                  ) : (
+                    <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <p style={{ margin: 0, color: '#64748b' }}>
+                        Compliance score is <strong>N/A</strong>. Scoring was not performed because the media failed product validation or identity consensus checks.
+                      </p>
                     </div>
-                    <div className="debug-stat-item">
-                      <span>Total Earned Weight:</span>
-                      <strong>{scoreBreakdown.earnedWeight || scan.complianceScore} pts</strong>
-                    </div>
-                    <div className="debug-stat-item">
-                      <span>Passed Weight (100%):</span>
-                      <strong>{scoreBreakdown.passedWeight || 0} pts</strong>
-                    </div>
-                    <div className="debug-stat-item">
-                      <span>Warning Weight (50%):</span>
-                      <strong>{scoreBreakdown.warningWeight || 0} pts</strong>
-                    </div>
-                    <div className="debug-stat-item">
-                      <span>Needs Review Weight (70%):</span>
-                      <strong>{scoreBreakdown.reviewWeight || 0} pts</strong>
-                    </div>
-                    <div className="debug-stat-item">
-                      <span>Failed Weight (0%):</span>
-                      <strong>{scoreBreakdown.failedWeight || 0} pts</strong>
-                    </div>
-                  </div>
-                  <p className="debug-formula-note">
-                    Score = (Earned Weight / Total Applicable Weight) × 100 = <strong>{scan.complianceScore}%</strong>. Excluded (NOT_APPLICABLE) rules do not reduce score.
-                  </p>
+                  )}
                 </div>
               )}
 

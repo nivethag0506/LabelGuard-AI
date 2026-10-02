@@ -174,18 +174,19 @@ export const generateInspectionPdf = async (scan) => {
   doc.text(doc.splitTextToSize(statusDesc, contentWidth - 55), margin + 8, cardY + 24);
 
   // Score Box on Right
+  const isScoreAvailable = scan.scoreAvailable !== false && scan.complianceScore !== null && scan.complianceScore !== undefined;
   doc.setFillColor(...PALETTE.white);
   doc.setDrawColor(...statusColors.text);
   doc.setLineWidth(0.5);
   doc.roundedRect(pageWidth - margin - 42, cardY + 6, 36, 26, 2, 2, 'FD');
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
+  doc.setFontSize(isScoreAvailable ? 18 : 14);
   doc.setTextColor(...statusColors.text);
-  doc.text(`${complianceScore}`, pageWidth - margin - 24, cardY + 18, { align: 'center' });
+  doc.text(isScoreAvailable ? `${complianceScore}` : 'N/A', pageWidth - margin - 24, cardY + (isScoreAvailable ? 18 : 17), { align: 'center' });
   doc.setFontSize(7.5);
   doc.setTextColor(...PALETTE.textMuted);
-  doc.text('OUT OF 100', pageWidth - margin - 24, cardY + 26, { align: 'center' });
+  doc.text(isScoreAvailable ? 'OUT OF 100' : 'NOT ASSESSED', pageWidth - margin - 24, cardY + 26, { align: 'center' });
 
   // Product Particulars Card
   let infoY = cardY + 46;
@@ -628,7 +629,11 @@ Attested Source Surface: ${extractedFields.manufacturer?.sourceView || 'BACK IMA
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(...PALETTE.navy);
-  doc.text(`OVERALL COMPLIANCE SCORE: ${complianceScore} / 100`, margin + 6, p5Y + 8);
+  if (isScoreAvailable) {
+    doc.text(`OVERALL COMPLIANCE SCORE: ${complianceScore} / 100`, margin + 6, p5Y + 8);
+  } else {
+    doc.text(`OVERALL COMPLIANCE SCORE: N/A (Scoring not performed)`, margin + 6, p5Y + 8);
+  }
 
   // Progress Bar
   const barX = margin + 6;
@@ -639,10 +644,12 @@ Attested Source Surface: ${extractedFields.manufacturer?.sourceView || 'BACK IMA
   doc.setFillColor(...PALETTE.border);
   doc.roundedRect(barX, barY, barW, barH, 2, 2, 'F');
 
-  const filledW = (complianceScore / 100) * barW;
-  doc.setFillColor(...(complianceScore >= 90 ? PALETTE.success : (complianceScore >= 70 ? PALETTE.warning : PALETTE.danger)));
-  if (filledW > 0) {
-    doc.roundedRect(barX, barY, filledW, barH, 2, 2, 'F');
+  if (isScoreAvailable) {
+    const filledW = (complianceScore / 100) * barW;
+    doc.setFillColor(...(complianceScore >= 90 ? PALETTE.success : (complianceScore >= 70 ? PALETTE.warning : PALETTE.danger)));
+    if (filledW > 0) {
+      doc.roundedRect(barX, barY, filledW, barH, 2, 2, 'F');
+    }
   }
 
   // Weight Calculation Row
