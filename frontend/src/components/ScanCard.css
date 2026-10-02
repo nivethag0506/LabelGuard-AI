@@ -1,0 +1,147 @@
+.scan-card-item {
+  display: flex;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.scan-card-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.scan-card-thumb-wrap {
+  width: 130px;
+  background-color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.scan-card-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scan-card-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
+  color: var(--text-muted);
+}
+
+.thumb-placeholder-icon {
+  opacity: 0.6;
+}
+
+.scan-card-content {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 0.4rem;
+}
+
+.scan-card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.scan-date {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.scan-product-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scan-manufacturer-name {
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scan-card-footer {
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.scan-meta-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.scan-score-tag {
+  display: flex;
+  align-items: baseline;
+}
+
+.scan-score-tag .score-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.scan-score-tag .score-max {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.scan-issues-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--warning-text);
+  background-color: var(--warning-light);
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--warning-border);
+}
+
+.scan-issues-tag.clean {
+  color: var(--success-text);
+  background-color: var(--success-light);
+  border-color: var(--success-border);
+}
+
+.scan-view-btn {
+  gap: 0.35rem;
+}
+
+@media (max-width: 500px) {
+  .scan-card-item {
+    flex-direction: column;
+  }
+  .scan-card-thumb-wrap {
+    width: 100%;
+    height: 140px;
+  }
+}

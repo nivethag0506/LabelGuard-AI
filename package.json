@@ -1,0 +1,16 @@
+{
+  "name": "legalscan-root",
+  "version": "1.0.0",
+  "description": "LegalScan - AI-Powered Packaged Commodity Compliance Assistant",
+  "scripts": {
+    "dev:backend": "cd backend && npm start",
+    "dev:frontend": "cd frontend && npm run dev",
+    "seed": "cd backend && npm run seed",
+    "build:frontend": "cd frontend && npm run build",
+    "test:system": "node test_system.mjs"
+  },
+  "dependencies": {
+    "form-data": "^4.0.6",
+    "node-fetch": "^3.3.2"
+  }
+}

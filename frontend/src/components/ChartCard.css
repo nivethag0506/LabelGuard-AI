@@ -1,0 +1,205 @@
+.chart-card {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-header {
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.chart-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.chart-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.chart-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Stacked bar */
+.distribution-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.stacked-bar {
+  height: 24px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  display: flex;
+  background-color: var(--surface-subtle);
+  border: 1px solid var(--border);
+}
+
+.bar-segment {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.bar-segment.compliant {
+  background-color: var(--success);
+}
+.bar-segment.needs-review {
+  background-color: var(--warning);
+}
+.bar-segment.high-risk {
+  background-color: var(--danger);
+}
+
+.distribution-legend {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .distribution-legend {
+    grid-template-columns: 1fr;
+  }
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.legend-dot.compliant {
+  background-color: var(--success);
+}
+.legend-dot.needs-review {
+  background-color: var(--warning);
+}
+.legend-dot.high-risk {
+  background-color: var(--danger);
+}
+
+.legend-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.legend-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.legend-val {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Trend SVG */
+.trend-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.trend-svg {
+  width: 100%;
+  height: 140px;
+  overflow: visible;
+}
+
+.trend-labels-row {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 0.5rem;
+}
+
+.trend-day-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.trend-score-val {
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+/* Common issues */
+.common-issues-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.issue-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.issue-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.issue-row-title {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 75%;
+}
+
+.issue-row-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.issue-progress-bg {
+  height: 8px;
+  background-color: var(--surface-subtle);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.issue-progress-bar {
+  height: 100%;
+  border-radius: var(--radius-full);
+}
+
+.issue-progress-bar.high {
+  background-color: var(--danger);
+}
+.issue-progress-bar.medium {
+  background-color: var(--warning);
+}
+.issue-progress-bar.low {
+  background-color: var(--accent);
+}
